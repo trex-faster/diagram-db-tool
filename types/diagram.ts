@@ -30,6 +30,16 @@ export interface Attribute {
   isUnique: boolean;
   defaultValue?: string;
   references?: AttributeReference;
+
+  // --- Nivel conceptual (EER, Elmasri/Navathe) ---
+  /** Atributo multivaluado, ej. Teléfonos. Se representa como {nombre}. */
+  isMultivalued: boolean;
+  /** Atributo derivado, ej. Edad a partir de FechaNacimiento. Se representa como /nombre. */
+  isDerived: boolean;
+  /** Atributo compuesto, ej. Dirección = Calle + Ciudad + CP. Agrupa sub-atributos. */
+  isComposite: boolean;
+  /** Si este atributo es sub-atributo de uno compuesto, el id del padre. */
+  parentAttributeId?: string;
 }
 
 export type EntityKind = "strong" | "weak";
@@ -75,11 +85,34 @@ export interface RelationshipDiamondData {
   isAssociative: boolean;
 }
 
+export type Participation = "partial" | "total";
+
 /** Conexión entidad <-> diamante de relación. Lleva la cardinalidad de ESE lado. */
 export interface CardinalityLinkData {
   cardinality: Cardinality;
-  role?: string; // rol opcional, ej: "empleador" / "empleado" en relaciones reflexivas
+  /** Restricción de participación (Elmasri/Navathe): total = línea doble, parcial = línea simple. */
+  participation: Participation;
+  /** Rol opcional — imprescindible en relaciones recursivas/n-arias, ej: "supervisor" / "supervisado". */
+  role?: string;
 }
+
+export type SpecializationConstraint = "disjoint" | "overlapping";
+export type SpecializationCompleteness = "total" | "partial";
+
+/**
+ * Nodo de especialización/generalización (jerarquía ISA), estilo Elmasri/Navathe:
+ * un círculo con "d" (disjoint) u "o" (overlapping), conectado a una superclase
+ * y a una o más subclases mediante IsaLinkData.
+ */
+export interface SpecializationData {
+  constraint: SpecializationConstraint;
+  completeness: SpecializationCompleteness;
+  /** Nombre opcional del discriminador, ej. "tipo_vehiculo". */
+  discriminator?: string;
+}
+
+/** Conexión superclase<->círculo ISA<->subclase. Sin datos propios; el estilo sale del nodo. */
+export type IsaLinkData = Record<string, never>;
 
 export interface Diagram {
   id: string;

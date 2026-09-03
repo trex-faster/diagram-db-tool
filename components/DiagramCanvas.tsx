@@ -6,8 +6,10 @@ import "@xyflow/react/dist/style.css";
 import { useDiagramStore } from "@/store/diagramStore";
 import EntityNode from "./EntityNode";
 import RelationshipDiamondNode from "./RelationshipDiamondNode";
+import SpecializationNode from "./SpecializationNode";
 import DirectRelationshipEdge from "./DirectRelationshipEdge";
 import CardinalityLinkEdge from "./CardinalityLinkEdge";
+import IsaLinkEdge from "./IsaLinkEdge";
 import Toolbar from "./Toolbar";
 
 export default function DiagramCanvas() {
@@ -18,11 +20,19 @@ export default function DiagramCanvas() {
   const onConnect = useDiagramStore((s) => s.onConnect);
 
   const nodeTypes = useMemo(
-    () => ({ entity: EntityNode, relationshipDiamond: RelationshipDiamondNode }),
+    () => ({
+      entity: EntityNode,
+      relationshipDiamond: RelationshipDiamondNode,
+      specialization: SpecializationNode,
+    }),
     []
   );
   const edgeTypes = useMemo(
-    () => ({ direct: DirectRelationshipEdge, cardinalityLink: CardinalityLinkEdge }),
+    () => ({
+      direct: DirectRelationshipEdge,
+      cardinalityLink: CardinalityLinkEdge,
+      isaLink: IsaLinkEdge,
+    }),
     []
   );
 

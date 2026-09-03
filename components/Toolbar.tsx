@@ -17,6 +17,7 @@ function download(filename: string, content: string, mime: string) {
 export default function Toolbar() {
   const addEntity = useDiagramStore((s) => s.addEntity);
   const addRelationshipDiamond = useDiagramStore((s) => s.addRelationshipDiamond);
+  const addSpecialization = useDiagramStore((s) => s.addSpecialization);
   const exportDiagram = useDiagramStore((s) => s.exportDiagram);
   const importDiagram = useDiagramStore((s) => s.importDiagram);
   const nodes = useDiagramStore((s) => s.nodes);
@@ -25,7 +26,7 @@ export default function Toolbar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="flex items-center gap-2 border-b border-gray-300 bg-white px-3 py-2 shadow-sm">
+    <div className="flex flex-wrap items-center gap-2 border-b border-gray-300 bg-white px-3 py-2 shadow-sm">
       <button
         className="rounded bg-orange-600 px-3 py-1 text-sm text-white hover:bg-orange-700"
         onClick={() => addEntity({ x: 100, y: 100 })}
@@ -39,6 +40,14 @@ export default function Toolbar() {
         title="Diamante de relación (notación Chen) — conectalo arrastrando desde/hacia entidades"
       >
         + Relación (◇)
+      </button>
+
+      <button
+        className="rounded bg-gray-700 px-3 py-1 text-sm text-white hover:bg-gray-800"
+        onClick={() => addSpecialization({ x: 500, y: 150 })}
+        title="Especialización/Generalización (ISA) — conectá la superclase arriba y las subclases abajo"
+      >
+        + ISA (d/o)
       </button>
 
       <div className="mx-2 h-6 w-px bg-gray-300" />
