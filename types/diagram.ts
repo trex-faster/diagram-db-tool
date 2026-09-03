@@ -1,0 +1,112 @@
+export type AttributeType =
+  | "integer"
+  | "bigint"
+  | "varchar"
+  | "text"
+  | "boolean"
+  | "date"
+  | "datetime"
+  | "decimal"
+  | "float"
+  | "uuid"
+  | "json";
+
+export interface AttributeReference {
+  entityId: string;
+  attributeId: string;
+}
+
+export interface Attribute {
+  id: string;
+  name: string;
+  type: AttributeType;
+  length?: number;
+  precision?: number;
+  scale?: number;
+  nullable: boolean;
+  isPrimaryKey: boolean;
+  isForeignKey: boolean;
+  isPartialKey: boolean; // llave parcial de entidad débil (subrayado punteado)
+  isUnique: boolean;
+  defaultValue?: string;
+  references?: AttributeReference;
+}
+
+export type EntityKind = "strong" | "weak";
+
+/** Índice compuesto o simple sobre una o más columnas de la entidad. */
+export interface IndexDef {
+  id: string;
+  name: string;
+  attributeIds: string[];
+  isUnique: boolean;
+}
+
+export interface EntityData {
+  name: string;
+  kind: EntityKind;
+  /** Entidad asociativa (representa una relación N:M con atributos propios). Estilo DIA "Associative". */
+  isAssociative: boolean;
+  attributes: Attribute[];
+  indexes: IndexDef[];
+  color?: string;
+}
+
+export type Cardinality = "1" | "N" | "0..1" | "0..N" | "1..N";
+
+/**
+ * Línea directa entidad-entidad (notación crow's foot), sin diamante de relación.
+ * Útil para conexiones rápidas de nivel lógico/físico.
+ */
+export interface DirectRelationshipData {
+  name: string;
+  sourceCardinality: Cardinality;
+  targetCardinality: Cardinality;
+  isIdentifying: boolean;
+}
+
+/**
+ * Nodo diamante de relación (notación Chen), estilo DIA: se conecta a 2+ entidades,
+ * cada conexión (CardinalityLinkData) lleva su propia cardinalidad.
+ */
+export interface RelationshipDiamondData {
+  name: string;
+  isIdentifying: boolean;
+  isAssociative: boolean;
+}
+
+/** Conexión entidad <-> diamante de relación. Lleva la cardinalidad de ESE lado. */
+export interface CardinalityLinkData {
+  cardinality: Cardinality;
+  role?: string; // rol opcional, ej: "empleador" / "empleado" en relaciones reflexivas
+}
+
+export interface Diagram {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const ATTRIBUTE_TYPE_LABELS: Record<AttributeType, string> = {
+  integer: "INTEGER",
+  bigint: "BIGINT",
+  varchar: "VARCHAR",
+  text: "TEXT",
+  boolean: "BOOLEAN",
+  date: "DATE",
+  datetime: "DATETIME",
+  decimal: "DECIMAL",
+  float: "FLOAT",
+  uuid: "UUID",
+  json: "JSON",
+};
+
+export function formatAttributeType(attr: Attribute): string {
+  const label = ATTRIBUTE_TYPE_LABELS[attr.type];
+  if (attr.type === "varchar" && attr.length) return `${label}(${attr.length})`;
+  if (attr.type === "decimal" && attr.precision !== undefined) {
+    return `${label}(${attr.precision}${attr.scale !== undefined ? `,${attr.scale}` : ""})`;
+  }
+  return label;
+}
