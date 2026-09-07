@@ -40,6 +40,23 @@ export interface Attribute {
   isComposite: boolean;
   /** Si este atributo es sub-atributo de uno compuesto, el id del padre. */
   parentAttributeId?: string;
+
+  /**
+   * Relación polimórfica (patrón Rails/Laravel): esta columna es la mitad "_id" o "_type"
+   * de un par polimórfico — ej. commentable_id + commentable_type, donde commentable_type
+   * guarda a qué tabla apunta el id (no hay un solo `references` fijo posible). Ambas
+   * columnas del par comparten el mismo `polymorphicGroup`.
+   */
+  polymorphicGroup?: string;
+  polymorphicRole?: "id" | "type";
+
+  /**
+   * Surrogate Key (artificial, ej. id autoincremental/UUID sin significado de negocio) vs
+   * Natural Key (un atributo que YA es significativo para el negocio, ej. email, ISBN, DNI,
+   * usado directamente como PK). Esto NO es derivable automáticamente — es una decisión de
+   * diseño del modelador, así que queda como campo explícito, solo relevante si isPrimaryKey.
+   */
+  keyNature?: "surrogate" | "natural";
 }
 
 export type EntityKind = "strong" | "weak";
@@ -53,6 +70,7 @@ export interface IndexDef {
 }
 
 export interface EntityData {
+  [key: string]: unknown;
   name: string;
   kind: EntityKind;
   /** Entidad asociativa (representa una relación N:M con atributos propios). Estilo DIA "Associative". */
@@ -64,15 +82,29 @@ export interface EntityData {
 
 export type Cardinality = "1" | "N" | "0..1" | "0..N" | "1..N";
 
+/** true si esta cardinalidad representa el lado "muchos" de una relación (para decidir dónde va la FK). */
+export function isManyCardinality(c: Cardinality): boolean {
+  return c === "N" || c === "0..N" || c === "1..N";
+}
+
 /**
  * Línea directa entidad-entidad (notación crow's foot), sin diamante de relación.
  * Útil para conexiones rápidas de nivel lógico/físico.
  */
 export interface DirectRelationshipData {
+  [key: string]: unknown;
   name: string;
   sourceCardinality: Cardinality;
   targetCardinality: Cardinality;
   isIdentifying: boolean;
+  /**
+   * Buena práctica: al fijar una cardinalidad 1:N, la FK real ya fue generada en el lado
+   * "muchos" (con su índice correspondiente). Evita que el usuario tenga que hacerlo a mano
+   * y evita generarla dos veces.
+   */
+  materializedFk?: { entityId: string; attributeId: string };
+  /** Buena práctica: para M:N ya se generó la tabla intermedia con sus dos FKs indexadas. */
+  materializedJunctionEntityId?: string;
 }
 
 /**
@@ -80,6 +112,7 @@ export interface DirectRelationshipData {
  * cada conexión (CardinalityLinkData) lleva su propia cardinalidad.
  */
 export interface RelationshipDiamondData {
+  [key: string]: unknown;
   name: string;
   isIdentifying: boolean;
   isAssociative: boolean;
@@ -89,6 +122,7 @@ export type Participation = "partial" | "total";
 
 /** Conexión entidad <-> diamante de relación. Lleva la cardinalidad de ESE lado. */
 export interface CardinalityLinkData {
+  [key: string]: unknown;
   cardinality: Cardinality;
   /** Restricción de participación (Elmasri/Navathe): total = línea doble, parcial = línea simple. */
   participation: Participation;
@@ -105,6 +139,7 @@ export type SpecializationCompleteness = "total" | "partial";
  * y a una o más subclases mediante IsaLinkData.
  */
 export interface SpecializationData {
+  [key: string]: unknown;
   constraint: SpecializationConstraint;
   completeness: SpecializationCompleteness;
   /** Nombre opcional del discriminador, ej. "tipo_vehiculo". */

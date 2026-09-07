@@ -50,15 +50,11 @@ function quoteIdent(name: string): string {
 }
 
 /** Solo los nodos de tipo "entity" describen tablas; los diamantes de relación no generan DDL directo. */
-function entityNodes(nodes: Node<unknown>[]): Node<EntityData>[] {
+function entityNodes(nodes: Node[]): Node<EntityData>[] {
   return nodes.filter((n): n is Node<EntityData> => n.type === "entity");
 }
 
-export function generateSQL(
-  nodes: Node<unknown>[],
-  edges: Edge<unknown>[],
-  dialect: SqlDialect = "postgres"
-): string {
+export function generateSQL(nodes: Node[], edges: Edge[], dialect: SqlDialect = "postgres"): string {
   const typeMap = TYPE_MAP[dialect];
   const tables = entityNodes(nodes);
   const statements: string[] = [];
@@ -71,10 +67,12 @@ export function generateSQL(
 
     // Nivel físico: un atributo COMPUESTO no es columna en sí — se "aplana", solo sus
     // sub-atributos (parentAttributeId === attr.id) se materializan como columnas.
+    // Un atributo DERIVADO tampoco es columna — es una regla de negocio (se calcula),
+    // no un dato almacenado.
     // Un atributo MULTIVALUADO viola 1FN si se deja como columna simple; lo dejamos pasar
     // como columna (útil para prototipar rápido) pero avisamos con un comentario, que es
     // la práctica real: normalmente se modela como tabla aparte con FK hacia esta.
-    const physicalAttributes = attributes.filter((a) => !a.isComposite);
+    const physicalAttributes = attributes.filter((a) => !a.isComposite && !a.isDerived);
 
     for (const attr of physicalAttributes) {
       let colType = typeMap[attr.type];

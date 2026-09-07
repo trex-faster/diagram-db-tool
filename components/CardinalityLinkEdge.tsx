@@ -1,6 +1,6 @@
 "use client";
 
-import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from "@xyflow/react";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { Cardinality, CardinalityLinkData, Participation } from "@/types/diagram";
 
@@ -15,7 +15,7 @@ export default function CardinalityLinkEdge({
   sourcePosition,
   targetPosition,
   data,
-}: EdgeProps<CardinalityLinkData>) {
+}: EdgeProps<Edge<CardinalityLinkData>>) {
   const updateCardinalityLink = useDiagramStore((s) => s.updateCardinalityLink);
   const link = data!;
 

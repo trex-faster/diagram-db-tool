@@ -1,13 +1,14 @@
 "use client";
 
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { SpecializationData } from "@/types/diagram";
 
-export default function SpecializationNode({ id, data }: NodeProps<SpecializationData>) {
+export default function SpecializationNode({ id, data }: NodeProps<Node<SpecializationData>>) {
   const toggleConstraint = useDiagramStore((s) => s.toggleSpecializationConstraint);
   const toggleCompleteness = useDiagramStore((s) => s.toggleSpecializationCompleteness);
   const updateDiscriminator = useDiagramStore((s) => s.updateSpecializationDiscriminator);
+  const deleteNode = useDiagramStore((s) => s.deleteNode);
 
   const letter = data.constraint === "disjoint" ? "d" : "o";
 
@@ -47,6 +48,13 @@ export default function SpecializationNode({ id, data }: NodeProps<Specializatio
         onClick={() => toggleCompleteness(id)}
       >
         {data.completeness === "total" ? "total" : "parcial"}
+      </button>
+      <button
+        className="absolute -right-4 -top-1 rounded bg-red-700 px-1 text-[9px] text-white opacity-0 group-hover:opacity-100"
+        title="Eliminar — borra sus conexiones con superclase/subclases"
+        onClick={() => deleteNode(id)}
+      >
+        🗑
       </button>
     </div>
   );

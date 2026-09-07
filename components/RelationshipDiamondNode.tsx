@@ -1,16 +1,17 @@
 "use client";
 
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { RelationshipDiamondData } from "@/types/diagram";
 
 export default function RelationshipDiamondNode({
   id,
   data,
-}: NodeProps<RelationshipDiamondData>) {
+}: NodeProps<Node<RelationshipDiamondData>>) {
   const renameRelationshipDiamond = useDiagramStore((s) => s.renameRelationshipDiamond);
   const toggleDiamondIdentifying = useDiagramStore((s) => s.toggleDiamondIdentifying);
   const toggleDiamondAssociative = useDiagramStore((s) => s.toggleDiamondAssociative);
+  const deleteNode = useDiagramStore((s) => s.deleteNode);
 
   return (
     <div className="group relative flex h-24 w-32 items-center justify-center">
@@ -50,6 +51,13 @@ export default function RelationshipDiamondNode({
           onClick={() => toggleDiamondAssociative(id)}
         >
           assoc
+        </button>
+        <button
+          title="Eliminar esta relación — borra sus conexiones con las entidades"
+          className="rounded bg-red-700 px-1 text-[9px] text-white hover:bg-red-800"
+          onClick={() => deleteNode(id)}
+        >
+          🗑
         </button>
       </div>
     </div>

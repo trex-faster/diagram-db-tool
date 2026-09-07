@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { useDiagramStore } from "@/store/diagramStore";
 import type { Attribute, AttributeType, EntityData } from "@/types/diagram";
 import { formatAttributeType } from "@/types/diagram";
+import { getEntityWarnings } from "@/lib/validation";
 import FkPicker from "./FkPicker";
+import NameField from "./NameField";
 
 const ATTRIBUTE_TYPES: AttributeType[] = [
   "integer",
@@ -27,12 +29,14 @@ function AttributeRow({
   indent,
   fkPickerAttrId,
   setFkPickerAttrId,
+  hasWarning,
 }: {
   entityId: string;
   attr: Attribute;
   indent: boolean;
   fkPickerAttrId: string | null;
   setFkPickerAttrId: (id: string | null) => void;
+  hasWarning: boolean;
 }) {
   const updateAttribute = useDiagramStore((s) => s.updateAttribute);
   const removeAttribute = useDiagramStore((s) => s.removeAttribute);
@@ -43,7 +47,15 @@ function AttributeRow({
   const displayName = attr.isMultivalued ? `{${attr.name}}` : attr.isDerived ? `/${attr.name}` : attr.name;
 
   return (
-    <div className="relative flex items-center gap-1 px-2 py-1" style={indent ? { paddingLeft: 20 } : undefined}>
+    <div
+      className={`relative flex items-center gap-1 px-2 py-1 ${hasWarning ? "bg-red-50" : ""}`}
+      style={indent ? { paddingLeft: 20 } : undefined}
+    >
+      {hasWarning && (
+        <span title="Este atributo tiene un aviso — revisá el resumen en el header" className="text-red-600">
+          ⚠
+        </span>
+      )}
       {!attr.isComposite && (
         <>
           <input
@@ -52,6 +64,31 @@ function AttributeRow({
             checked={attr.isPrimaryKey}
             onChange={(e) => updateAttribute(entityId, attr.id, { isPrimaryKey: e.target.checked })}
           />
+          {attr.isPrimaryKey && (
+            <button
+              title={
+                attr.keyNature === "natural"
+                  ? "Natural Key: este dato YA es significativo para el negocio (email, ISBN, DNI). Click para marcar como Surrogate."
+                  : attr.keyNature === "surrogate"
+                    ? "Surrogate Key: identificador artificial sin significado de negocio (id autoincremental/UUID). Click para marcar como Natural."
+                    : "¿Es una Surrogate Key (artificial) o Natural Key (un dato de negocio, ej. email/DNI)? Click para elegir."
+              }
+              className={`text-[8px] font-bold ${
+                attr.keyNature === "natural"
+                  ? "text-indigo-700"
+                  : attr.keyNature === "surrogate"
+                    ? "text-cyan-700"
+                    : "text-gray-300"
+              }`}
+              onClick={() =>
+                updateAttribute(entityId, attr.id, {
+                  keyNature: attr.keyNature === "surrogate" ? "natural" : "surrogate",
+                })
+              }
+            >
+              {attr.keyNature === "natural" ? "NAT" : attr.keyNature === "surrogate" ? "SUR" : "S/N"}
+            </button>
+          )}
           <input
             type="checkbox"
             title="Llave parcial (weak key) de entidad débil"
@@ -61,17 +98,24 @@ function AttributeRow({
           />
         </>
       )}
-      <input
+      <NameField
+        kind="atributo"
+        value={attr.name}
+        displayValue={displayName}
+        parseDisplayValue={(raw) => raw.replace(/^\{|\}$/g, "").replace(/^\//, "")}
+        onChange={(name) => updateAttribute(entityId, attr.id, { name })}
         className={`w-20 bg-transparent outline-none ${attr.isPrimaryKey ? "underline decoration-solid" : ""} ${
           attr.isPartialKey ? "underline decoration-dotted" : ""
         } ${attr.isDerived ? "italic" : ""}`}
-        value={displayName}
-        onChange={(e) => {
-          const raw = e.target.value.replace(/^\{|\}$/g, "").replace(/^\//, "");
-          updateAttribute(entityId, attr.id, { name: raw });
-        }}
-        title={attr.isMultivalued ? "Multivaluado" : attr.isDerived ? "Derivado" : undefined}
       />
+      {attr.polymorphicGroup && (
+        <span
+          title={`Parte del par polimórfico (${attr.polymorphicRole}) — patrón Rails/Laravel, no tiene una FK fija a una sola tabla`}
+          className="rounded bg-teal-600 px-1 text-[8px] font-bold text-white"
+        >
+          P
+        </span>
+      )}
       {!attr.isComposite && (
         <select
           className="flex-1 bg-transparent text-xs outline-none"
@@ -155,37 +199,52 @@ function AttributeRow({
   );
 }
 
-export default function EntityNode({ id, data }: NodeProps<EntityData>) {
+export default function EntityNode({ id, data }: NodeProps<Node<EntityData>>) {
   const renameEntity = useDiagramStore((s) => s.renameEntity);
   const toggleEntityKind = useDiagramStore((s) => s.toggleEntityKind);
   const toggleEntityAssociative = useDiagramStore((s) => s.toggleEntityAssociative);
   const addAttribute = useDiagramStore((s) => s.addAttribute);
+  const addPolymorphicPair = useDiagramStore((s) => s.addPolymorphicPair);
   const addIndex = useDiagramStore((s) => s.addIndex);
   const updateIndex = useDiagramStore((s) => s.updateIndex);
   const removeIndex = useDiagramStore((s) => s.removeIndex);
   const toggleIndexAttribute = useDiagramStore((s) => s.toggleIndexAttribute);
+  const deleteNode = useDiagramStore((s) => s.deleteNode);
 
   const [fkPickerAttrId, setFkPickerAttrId] = useState<string | null>(null);
   const [showIndexes, setShowIndexes] = useState(false);
 
   const isWeak = data.kind === "weak";
   const topLevelAttributes = data.attributes.filter((a) => !a.parentAttributeId);
+  const warnings = getEntityWarnings(data);
+  const warningAttrIds = new Set(warnings.map((w) => w.attributeId).filter(Boolean));
 
   return (
     <div
       className={`min-w-[280px] rounded-md bg-orange-50 text-sm shadow-md ${
         isWeak ? "border-4 border-double border-red-800" : "border-2 border-orange-800"
-      } ${data.isAssociative ? "outline outline-2 outline-dashed outline-purple-500" : ""}`}
+      } ${data.isAssociative ? "outline outline-2 outline-dashed outline-purple-500" : ""} ${
+        warnings.length > 0 ? "ring-2 ring-red-400" : ""
+      }`}
     >
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
 
       <div className="flex items-center justify-between gap-1 rounded-t border-b border-orange-800 bg-orange-200 px-2 py-1">
-        <input
-          className="w-full bg-transparent font-bold outline-none"
+        <NameField
+          kind="entidad"
           value={data.name}
-          onChange={(e) => renameEntity(id, e.target.value)}
+          onChange={(name) => renameEntity(id, name)}
+          className="w-full bg-transparent font-bold outline-none"
         />
+        {warnings.length > 0 && (
+          <span
+            title={warnings.map((w) => `• ${w.message}`).join("\n")}
+            className="shrink-0 cursor-help rounded bg-red-600 px-1 text-[10px] font-bold text-white"
+          >
+            ⚠ {warnings.length}
+          </span>
+        )}
         <button
           title="Alternar entidad fuerte / débil"
           className="shrink-0 rounded bg-orange-300 px-1 text-[10px] hover:bg-orange-400"
@@ -202,6 +261,21 @@ export default function EntityNode({ id, data }: NodeProps<EntityData>) {
         >
           assoc
         </button>
+        <button
+          title="Eliminar entidad — borra en cascada sus relaciones y cualquier FK de otras tablas que apunte acá"
+          className="shrink-0 rounded bg-red-700 px-1 text-[10px] text-white hover:bg-red-800"
+          onClick={() => {
+            if (
+              window.confirm(
+                `¿Eliminar "${data.name}"? Esto también borra sus relaciones y cualquier columna FK de otras tablas que apunte a esta entidad. (Podés deshacerlo con Ctrl+Z si te arrepentís.)`
+              )
+            ) {
+              deleteNode(id);
+            }
+          }}
+        >
+          🗑
+        </button>
       </div>
 
       <div className="divide-y divide-orange-200">
@@ -213,6 +287,7 @@ export default function EntityNode({ id, data }: NodeProps<EntityData>) {
               indent={false}
               fkPickerAttrId={fkPickerAttrId}
               setFkPickerAttrId={setFkPickerAttrId}
+              hasWarning={warningAttrIds.has(attr.id)}
             />
             {attr.isComposite &&
               data.attributes
@@ -225,6 +300,7 @@ export default function EntityNode({ id, data }: NodeProps<EntityData>) {
                     indent
                     fkPickerAttrId={fkPickerAttrId}
                     setFkPickerAttrId={setFkPickerAttrId}
+                    hasWarning={warningAttrIds.has(sub.id)}
                   />
                 ))}
           </div>
@@ -236,6 +312,20 @@ export default function EntityNode({ id, data }: NodeProps<EntityData>) {
         onClick={() => addAttribute(id)}
       >
         + atributo
+      </button>
+
+      <button
+        className="w-full border-t border-teal-700 bg-teal-50 py-1 text-[10px] text-teal-800 hover:bg-teal-100"
+        title="Genera el par {nombre}_id + {nombre}_type (patrón Rails/Laravel) para relaciones que apuntan a varias tablas distintas, ej. comentarios que pueden ir en un Post o en una Foto"
+        onClick={() => {
+          const base = window.prompt(
+            "Nombre base para la relación polimórfica (ej. 'commentable' para comentarios que aplican a varios tipos de contenido):",
+            "polimorfico"
+          );
+          if (base) addPolymorphicPair(id, base);
+        }}
+      >
+        + polimórfico ({"{nombre}_id"} + {"{nombre}_type"})
       </button>
 
       <button
